@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
-import { pool } from "./db.js";
+import { pool } from "./models/db.js";
 
 dotenv.config();
 const connection = await pool.getConnection();
@@ -26,11 +26,14 @@ try {
     [cse.department_id, ece.department_id],
   );
   const accounts = [
-    ["admin@college.edu", "Admin@123", "admin", "Campus Administrator"],
-    ["priya.faculty@college.edu", "Faculty@123", "faculty", "Dr. Priya Menon"],
-    ["aarav.student@college.edu", "Student@123", "student", "Aarav Mehta"],
+    ["admin@college.edu", process.env.SEED_ADMIN_PASSWORD, "admin", "Campus Administrator"],
+    ["priya.faculty@college.edu", process.env.SEED_FACULTY_PASSWORD, "faculty", "Dr. Priya Menon"],
+    ["aarav.student@college.edu", process.env.SEED_STUDENT_PASSWORD, "student", "Aarav Mehta"],
   ];
   for (const [email, password, role, name] of accounts) {
+    if (!password || password.length < 12) {
+      throw new Error(`Set a private SEED_${role.toUpperCase()}_PASSWORD with at least 12 characters in backend/.env.`);
+    }
     await connection.execute(
       "INSERT INTO users (email, password_hash, role, display_name) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), role = VALUES(role), display_name = VALUES(display_name)",
       [email, await bcrypt.hash(password, 12), role, name],
@@ -43,7 +46,7 @@ try {
     "INSERT IGNORE INTO fees (student_id, amount, due_date, description, status) SELECT student_id, 12000, DATE_ADD(CURDATE(), INTERVAL 30 DAY), 'Semester tuition', 'pending' FROM students WHERE student_code = 'STU-2026-002'",
   );
   await connection.commit();
-  console.log("Seed complete. Demo admin: admin@college.edu / Admin@123");
+  console.log("Seed complete. Admin account: admin@college.edu");
 } catch (error) {
   await connection.rollback();
   console.error("Seed failed:", error.message);

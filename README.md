@@ -39,13 +39,13 @@ Open the project folder in VS Code and use its integrated PowerShell terminal:
 
 The seed command is safe to rerun for its sample records. It creates these local demonstration accounts:
 
-| Role | Email | Password |
+| Role | Email | Set password with |
 |---|---|---|
-| Admin | `admin@college.edu` | `Admin@123` |
-| Faculty | `priya.faculty@college.edu` | `Faculty@123` |
-| Student | `aarav.student@college.edu` | `Student@123` |
+| Admin | `admin@college.edu` | `SEED_ADMIN_PASSWORD` |
+| Faculty | `priya.faculty@college.edu` | `SEED_FACULTY_PASSWORD` |
+| Student | `aarav.student@college.edu` | `SEED_STUDENT_PASSWORD` |
 
-Change demonstration passwords and the JWT secret before using non-demo data. The seed script intentionally resets those demo account passwords when it is run.
+Set each seed password to a private value of at least 12 characters in `backend/.env` before running the seed command. The seed script intentionally resets those account passwords whenever it is run. No usable passwords or tokens are committed to the project.
 
 ## Commands
 
@@ -67,18 +67,27 @@ backend/
   database/schema.sql        MySQL tables, indexes, and relationships
   src/
     app.js                   Express middleware and route registration
-    db.js                    MySQL connection pool
+    controllers/authController.js  Authentication and account handlers
+    db.js                    Backwards-compatible database exports
     index.js                 API startup and database connectivity check
     middleware/auth.js       JWT authentication and role checks
+    models/db.js             MySQL connection pool and connectivity check
     routes/auth.js           Sign-in, current user, admin user creation
     routes/api.js            Dashboard and academic REST endpoints
     seed.js                  Demo data and bcrypt-hashed demo accounts
 frontend/
   index.html
+  public/favicon.svg
+  vite.config.js
   src/
+    assets/brand-mark.svg
     api.js                   Authenticated API client and CSV export
     App.jsx                  Dashboard, navigation, forms, and management views
+    components/Common.jsx    Shared page, modal, field, toast, and stat components
     main.jsx                 React entry point
+    pages/
+      Login.jsx
+      SupportPage.jsx
     styles.css               Responsive light/dark theme
 package.json                npm workspaces and run scripts
 ```

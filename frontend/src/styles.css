@@ -50,6 +50,7 @@ button:disabled { opacity: .65; cursor: wait !important; }
 .brand, .login-brand { display: flex; align-items: center; gap: 10px; font: 800 20px Manrope, sans-serif; letter-spacing: -.8px; }
 .brand > span:last-of-type > span, .login-brand > span:last-child > span { color: var(--blue); }
 .brand-mark { width: 35px; height: 35px; flex: 0 0 35px; display: inline-flex; align-items: center; justify-content: center; border-radius: 11px; color: white; background: linear-gradient(140deg, #5c83f8, #355ed8); box-shadow: 0 5px 12px rgba(66, 111, 240, .2); }
+.brand-mark img { width: 100%; height: 100%; border-radius: inherit; }
 .workspace-label { margin: 41px 0 11px 10px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 1.15px; }
 .side-nav { display: grid; gap: 4px; }
 .nav-item { width: 100%; min-height: 41px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted-strong); text-align: left; cursor: pointer; transition: background .16s ease, color .16s ease; }

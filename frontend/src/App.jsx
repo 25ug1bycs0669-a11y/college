@@ -1,12 +1,16 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity, ArrowDownRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, ChevronDown,
   CircleHelp, ClipboardCheck, CreditCard, GraduationCap, LayoutDashboard, LogOut, Menu,
-  Moon, MoreHorizontal, Plus, Search, Settings2, ShieldCheck, Sun, Users, X,
+  Moon, Plus, Search, Settings2, Sun, Users, X,
 } from "lucide-react";
 import { api, downloadCsv } from "./api.js";
+import Dashboard from "./pages/Dashboard.jsx";
+import brandMark from "./assets/brand-mark.svg";
+import Login from "./pages/Login.jsx";
+import SupportPage from "./pages/SupportPage.jsx";
+import { FormField, Modal, PageTitle, Toast } from "./components/Common.jsx";
 
-const FeeChart = lazy(() => import("./FeeChart.jsx"));
 const navigation = [
   { label: "Overview", icon: LayoutDashboard, key: "dashboard", roles: ["admin", "faculty", "student"] },
   { label: "Students", icon: GraduationCap, key: "students", roles: ["admin", "faculty"] },
@@ -91,33 +95,6 @@ const today = () => new Date().toISOString().slice(0, 10);
 const displayValue = (value) => value === null || value === undefined || value === "" ? "—" : value;
 const escapeHtml = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 
-function PageTitle({ eyebrow, title, description, children }) {
-  return <div className="page-title"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="page-description">{description}</p></div>{children}</div>;
-}
-
-function Toast({ toast, dismiss }) {
-  if (!toast) return null;
-  return <div className={`toast ${toast.type || "success"}`} role="status"><span>{toast.type === "error" ? "!" : <Check size={17} />}</span>{toast.message}<button onClick={dismiss} aria-label="Dismiss"><X size={15} /></button></div>;
-}
-
-function Modal({ title, children, onClose }) {
-  useEffect(() => {
-    const close = (event) => event.key === "Escape" && onClose();
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [onClose]);
-  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="modal" role="dialog" aria-modal="true" aria-label={title}><div className="modal-heading"><div><p className="eyebrow">CampusFlow</p><h2>{title}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button></div>{children}</section></div>;
-}
-
-function FormField({ field, value, onChange, lookups }) {
-  const options = field.options || lookups[field.source]?.map((row) => [String(row[field.source === "departments" ? "department_id" : "course_id"]), `${row.code ? `${row.code} · ` : ""}${row.name}`]) || [];
-  return <label className={`form-field ${field.type === "textarea" ? "wide" : ""}`}><span>{field.label}{field.required && <b> *</b>}</span>
-    {field.type === "select" ? <select required={field.required} value={value ?? ""} onChange={(event) => onChange(event.target.value)}><option value="">Select {field.label.toLowerCase()}</option>{options.map(([id, name]) => <option value={id} key={id}>{name}</option>)}</select>
-      : field.type === "textarea" ? <textarea value={value ?? ""} rows="3" onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder || ""} />
-        : <input type={field.type || "text"} value={value ?? ""} required={field.required} min={field.min} max={field.max} placeholder={field.placeholder || ""} onChange={(event) => onChange(event.target.value)} />}
-  </label>;
-}
-
 function ManagementView({ config, lookups, role, notify, query }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -182,41 +159,6 @@ function ManagementView({ config, lookups, role, notify, query }) {
       </table></div>
     </div>
     {modal && <Modal title={`${modal.row ? "Edit" : "Add"} ${config.singular}`} onClose={() => setModal(null)}><form className="record-form" onSubmit={save}><div className="form-grid">{config.fields.map((field) => <FormField key={field.name} field={field} value={modal.values[field.name]} lookups={lookups} onChange={(value) => setModal((current) => ({ ...current, values: { ...current.values, [field.name]: value } }))} />)}</div>{error && <p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="button button-secondary" onClick={() => setModal(null)}>Cancel</button><button className="button button-primary" disabled={saving}>{saving ? "Saving…" : modal.row ? "Save changes" : `Create ${config.singular}`}</button></div></form></Modal>}
-  </section>;
-}
-
-function StatCard({ icon: Icon, label, value, note, tone }) {
-  return <div className="stat-card"><div className={`stat-icon ${tone}`}><Icon size={19} /></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-note">{note}</div></div>;
-}
-
-function Dashboard({ role }) {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState("");
-  useEffect(() => { api("/dashboard").then(setData).catch((err) => setError(err.message)); }, []);
-  const totals = data?.totals || {};
-  const attendanceRate = data?.attendance?.total ? Math.round((data.attendance.present / data.attendance.total) * 100) : 0;
-  const chartData = data?.monthlyFees?.length ? data.monthlyFees : [{ month: "No data", amount: 0 }];
-  const trend = data?.attendanceTrend?.length ? data.attendanceTrend : [{ day: "No data", rate: 0 }];
-  const currentDate = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(new Date()).toUpperCase();
-  return <section><PageTitle eyebrow={currentDate} title="Good morning" description="Here’s what’s happening across your campus today." /><div className="stat-grid">
-    {role === "student" ? <>
-      <StatCard icon={ClipboardCheck} label="Attendance today" value={data?.attendance?.total ? `${attendanceRate}%` : "—"} note={data?.attendance?.total ? `${data.attendance.present} marked present` : "Not marked yet"} tone="blue" />
-      <StatCard icon={BookOpen} label="My enrolled courses" value={totals.courses ?? "—"} note="Current course enrollment" tone="green" />
-      <StatCard icon={CreditCard} label="Fees paid" value={currency.format(data?.fees?.collected || 0)} note="Payments on your account" tone="violet" />
-      <StatCard icon={CreditCard} label="Fees due" value={currency.format(data?.fees?.pending || 0)} note="Outstanding on your account" tone="orange" />
-    </> : <>
-      <StatCard icon={GraduationCap} label="Total students" value={totals.students ?? "—"} note="Enrolled student records" tone="blue" />
-      <StatCard icon={Users} label="Faculty members" value={totals.faculty ?? "—"} note="Academic faculty" tone="violet" />
-      <StatCard icon={BookOpen} label="Active courses" value={totals.courses ?? "—"} note="Available programs" tone="green" />
-      <StatCard icon={Settings2} label="Departments" value={totals.departments ?? "—"} note="Academic departments" tone="orange" />
-    </>}
-  </div>
-  {error && <div className="inline-error">{error}</div>}
-  <div className="dashboard-grid"><div className="panel chart-panel"><div className="panel-heading"><div><h2>Fee collection</h2><p>Paid tuition over the last 6 months</p></div><span className="chart-legend"><i /> Collected</span></div><div className="chart-wrap">{data ? <Suspense fallback={<div className="chart-loading">Loading chart…</div>}><FeeChart data={chartData} /></Suspense> : <div className="chart-loading">Loading performance…</div>}</div><div className="chart-footer"><span>Total collected</span><strong>{currency.format(data?.fees?.collected || 0)}</strong><span className="footer-divider" /><span>Outstanding</span><strong>{currency.format(data?.fees?.pending || 0)}</strong></div></div>
-    <div className="panel attendance-panel"><div className="panel-heading"><div><h2>Attendance today</h2><p>Student attendance overview</p></div><span className="icon-chip"><ClipboardCheck size={17} /></span></div><div className="attendance-number">{attendanceRate}<span>%</span></div><p className="attendance-caption">{data?.attendance?.present ?? 0} present out of {data?.attendance?.total ?? 0} marked</p><div className="progress-track"><div style={{ width: `${attendanceRate}%` }} /></div><div className="mini-chart">{trend.map((item, index) => <div key={`${item.day}-${index}`} title={`${item.day}: ${item.rate}%`}><i style={{ height: `${Math.max(8, Number(item.rate) || 8)}%` }} /></div>)}</div><div className="mini-chart-label"><span>Last 7 days</span><span>Attendance trend</span></div></div>
-  </div>
-  <div className="panel recent-panel"><div className="panel-heading"><div><h2>Recent registrations</h2><p>Latest students added to the system</p></div><span className="record-count">Latest 5</span></div><div className="table-scroll"><table><thead><tr><th>Student</th><th>Student ID</th><th>Email</th><th>Enrollment date</th><th>Status</th></tr></thead><tbody>{data?.recentStudents?.length ? data.recentStudents.map((student) => <tr key={student.student_id}><td><div className="student-cell"><span className="avatar small">{student.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><strong>{student.name}</strong></div></td><td className="muted-cell">{student.student_code}</td><td>{student.email}</td><td>{String(student.enrollment_date).slice(0, 10)}</td><td><span className={`status-pill ${student.status}`}>{student.status}</span></td></tr>) : <tr><td colSpan="5" className="empty-cell">{data ? "No student registrations yet." : "Loading registrations…"}</td></tr>}</tbody></table></div></div>
-  {role === "student" && <div className="student-welcome"><ShieldCheck size={18} /> Your student portal is ready. Use the sidebar to explore your courses, fees, examination schedule, and timetable.</div>}
   </section>;
 }
 
@@ -346,24 +288,6 @@ function TimetablePage({ lookups, notify, role }) {
   </section>;
 }
 
-function SupportPage() {
-  return <section><PageTitle eyebrow="WE’RE HERE TO HELP" title="Contact & support" description="Need a hand? Our campus administration team is ready to help." /><div className="support-grid"><div className="panel support-card"><span className="support-icon blue"><CircleHelp size={21} /></span><h2>Student & faculty support</h2><p>Questions about enrollment, attendance, your schedule, or accessing CampusFlow? Reach out to our support team.</p><a className="button button-primary" href="mailto:support@college.edu?subject=CampusFlow%20Support">Email support</a><small>support@college.edu · Replies within 1 business day</small></div><div className="panel support-card"><span className="support-icon violet"><Bell size={21} /></span><h2>Campus administration</h2><p>For administrative updates, account access, or to report an issue with college records, contact the administration office.</p><a className="button button-secondary" href="mailto:admin@college.edu?subject=CampusFlow%20Administration">Contact administration</a><small>admin@college.edu · Monday–Friday, 9am–5pm</small></div><div className="panel support-tip"><ShieldCheck size={20} /><div><strong>Keep your account secure</strong><p>Never share your password. Sign out after using a shared device, and contact administration if you notice unfamiliar account activity.</p></div></div></div></section>;
-}
-
-function Login({ onLogin }) {
-  const [email, setEmail] = useState("admin@college.edu");
-  const [password, setPassword] = useState("Admin@123");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const submit = async (event) => {
-    event.preventDefault(); setBusy(true); setError("");
-    try { const result = await api("/auth/login", { method: "POST", body: { email, password } }); localStorage.setItem("campusflow_token", result.token); localStorage.setItem("campusflow_user", JSON.stringify(result.user)); onLogin(result.user); }
-    catch (err) { setError(err.message); }
-    finally { setBusy(false); }
-  };
-  return <main className="login-shell"><div className="login-brand"><span className="brand-mark"><GraduationCap size={24} /></span><span>campus<span>flow</span></span></div><div className="login-content"><div className="login-badge"><ShieldCheck size={15} /> COLLEGE ADMINISTRATION</div><h1>Welcome back</h1><p>Sign in to manage your campus.</p><form onSubmit={submit}><label className="form-field"><span>Email address</span><input type="email" required autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} /></label><label className="form-field"><span>Password</span><input type="password" required autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>{error && <p className="form-error">{error}</p>}<button className="button button-primary login-button" disabled={busy}>{busy ? "Signing in…" : "Sign in to dashboard"}</button></form><div className="login-demo"><strong>Demo accounts</strong><span>Admin: admin@college.edu / Admin@123</span><span>Faculty: priya.faculty@college.edu / Faculty@123</span><span>Student: aarav.student@college.edu / Student@123</span><small>Demo accounts are available after completing the database setup.</small></div></div><span className="login-footer">© 2026 CampusFlow · College Management System</span></main>;
-}
-
 export default function App() {
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem("campusflow_user") || "null"); } catch { return null; } });
   const [page, setPage] = useState("dashboard");
@@ -396,7 +320,7 @@ export default function App() {
     { title: "Campus is up to date", detail: "Your academic records are synced.", icon: Check },
   ];
 
-  return <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""}`}><aside className="sidebar"><div className="brand"><span className="brand-mark"><GraduationCap size={23} /></span><span>campus<span>flow</span></span><button className="mobile-close icon-button" onClick={() => setSidebarOpen(false)} aria-label="Close menu"><X size={18} /></button></div><div className="workspace-label">WORKSPACE</div><nav className="side-nav">{allowedNavigation.map(({ label, icon: Icon, key }) => <button key={key} className={`nav-item ${currentPage === key ? "active" : ""}`} onClick={() => { setPage(key); setSidebarOpen(false); }}><Icon size={18} /><span>{label}</span>{key === "attendance" && <i className="nav-indicator" />}</button>)}</nav><div className="sidebar-bottom"><button className={`nav-item ${currentPage === "support" ? "active" : ""}`} onClick={() => { setPage("support"); setSidebarOpen(false); }}><CircleHelp size={18} /><span>Help & support</span></button><div className="sidebar-profile"><span className="avatar">{(user.name || "User").split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><span className="profile-copy"><strong>{user.name}</strong><small>{user.role} account</small></span><button className="icon-button logout-button" title="Sign out" onClick={logout}><LogOut size={17} /></button></div></div></aside><div className="sidebar-scrim" onClick={() => setSidebarOpen(false)} />
+  return <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""}`}><aside className="sidebar"><div className="brand"><span className="brand-mark"><img src={brandMark} alt="" /></span><span>campus<span>flow</span></span><button className="mobile-close icon-button" onClick={() => setSidebarOpen(false)} aria-label="Close menu"><X size={18} /></button></div><div className="workspace-label">WORKSPACE</div><nav className="side-nav">{allowedNavigation.map(({ label, icon: Icon, key }) => <button key={key} className={`nav-item ${currentPage === key ? "active" : ""}`} onClick={() => { setPage(key); setSidebarOpen(false); }}><Icon size={18} /><span>{label}</span>{key === "attendance" && <i className="nav-indicator" />}</button>)}</nav><div className="sidebar-bottom"><button className={`nav-item ${currentPage === "support" ? "active" : ""}`} onClick={() => { setPage("support"); setSidebarOpen(false); }}><CircleHelp size={18} /><span>Help & support</span></button><div className="sidebar-profile"><span className="avatar">{(user.name || "User").split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><span className="profile-copy"><strong>{user.name}</strong><small>{user.role} account</small></span><button className="icon-button logout-button" title="Sign out" onClick={logout}><LogOut size={17} /></button></div></div></aside><div className="sidebar-scrim" onClick={() => setSidebarOpen(false)} />
     <main className="main-area"><header className="topbar"><div className="topbar-left"><button className="icon-button menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={20} /></button><span className="breadcrumb">Campus <span>/</span> {pageTitle}</span></div><div className="topbar-right"><label className="global-search"><Search size={16} /><input placeholder="Search anything..." value={globalSearch} onChange={(event) => setGlobalSearch(event.target.value)} /><kbd>⌘ K</kbd></label><div className="notification-wrap"><button className="icon-button notification-button" aria-label="Notifications" onClick={() => setNotificationsOpen(!notificationsOpen)}><Bell size={18} /><i /></button>{notificationsOpen && <div className="notification-popover"><div className="popover-heading"><strong>Notifications</strong><button onClick={() => setNotificationsOpen(false)}><X size={15} /></button></div>{notifications.map(({ title, detail, icon: Icon }) => <div className="notification-item" key={title}><span><Icon size={16} /></span><div><strong>{title}</strong><small>{detail}</small></div></div>)}</div>}</div><button className="icon-button theme-toggle" onClick={() => setDark(!dark)} aria-label={`Switch to ${dark ? "light" : "dark"} mode`}>{dark ? <Sun size={18} /> : <Moon size={18} />}</button><span className="topbar-divider" /><button className="topbar-user" onClick={() => setPage("support")}><span className="avatar small">{(user.name || "User").split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><span><strong>{user.name}</strong><small>{user.role === "admin" ? "Administrator" : user.role}</small></span><ChevronDown size={15} /></button></div></header>
       <div className="page-content">{currentPage === "dashboard" ? <Dashboard role={user.role} /> : configurations[currentPage] ? <ManagementView config={configurations[currentPage]} lookups={lookups} role={user.role} notify={notify} query={globalSearch} /> : currentPage === "attendance" ? <AttendancePage lookups={lookups} role={user.role} notify={notify} /> : currentPage === "fees" ? <FeesPage notify={notify} role={user.role} /> : currentPage === "exams" ? <ExamsPage role={user.role} lookups={lookups} notify={notify} /> : currentPage === "timetable" ? <TimetablePage lookups={lookups} notify={notify} role={user.role} /> : <SupportPage />}</div>
     </main><Toast toast={toast} dismiss={() => setToast(null)} /></div>;
