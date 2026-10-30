@@ -37,15 +37,7 @@ Open the project folder in VS Code and use its integrated PowerShell terminal:
 
 4. Open [http://localhost:5173](http://localhost:5173). The API health check is at [http://localhost:4000/api/health](http://localhost:4000/api/health).
 
-The seed command is safe to rerun for its sample records. It creates these local demonstration accounts:
-
-| Role | Email | Set password with |
-|---|---|---|
-| Admin | `admin@college.edu` | `SEED_ADMIN_PASSWORD` |
-| Faculty | `priya.faculty@college.edu` | `SEED_FACULTY_PASSWORD` |
-| Student | `aarav.student@college.edu` | `SEED_STUDENT_PASSWORD` |
-
-Set each seed password to a private value of at least 12 characters in `backend/.env` before running the seed command. The seed script intentionally resets those account passwords whenever it is run. No usable passwords or tokens are committed to the project.
+Before seeding, set unique passwords of at least 12 characters for `SEED_ADMIN_PASSWORD`, `SEED_FACULTY_PASSWORD`, and `SEED_STUDENT_PASSWORD` in `backend/.env`. These local accounts use the sample admin, faculty, and student email addresses shown in `backend/src/seed.js`. The seed command is safe to rerun for its sample records and resets these accounts to the locally configured passwords. Do not commit `backend/.env`.
 
 ## Commands
 
@@ -67,27 +59,18 @@ backend/
   database/schema.sql        MySQL tables, indexes, and relationships
   src/
     app.js                   Express middleware and route registration
-    controllers/authController.js  Authentication and account handlers
-    db.js                    Backwards-compatible database exports
+    db.js                    MySQL connection pool
     index.js                 API startup and database connectivity check
     middleware/auth.js       JWT authentication and role checks
-    models/db.js             MySQL connection pool and connectivity check
     routes/auth.js           Sign-in, current user, admin user creation
     routes/api.js            Dashboard and academic REST endpoints
     seed.js                  Demo data and bcrypt-hashed demo accounts
 frontend/
   index.html
-  public/favicon.svg
-  vite.config.js
   src/
-    assets/brand-mark.svg
     api.js                   Authenticated API client and CSV export
     App.jsx                  Dashboard, navigation, forms, and management views
-    components/Common.jsx    Shared page, modal, field, toast, and stat components
     main.jsx                 React entry point
-    pages/
-      Login.jsx
-      SupportPage.jsx
     styles.css               Responsive light/dark theme
 package.json                npm workspaces and run scripts
 ```

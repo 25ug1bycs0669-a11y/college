@@ -1,8 +1,22 @@
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
-import { pool } from "./models/db.js";
+import { pool } from "./db.js";
 
 dotenv.config();
+const seedPasswords = {
+  admin: process.env.SEED_ADMIN_PASSWORD,
+  faculty: process.env.SEED_FACULTY_PASSWORD,
+  student: process.env.SEED_STUDENT_PASSWORD,
+};
+const missingPasswords = Object.entries(seedPasswords)
+  .filter(([, password]) => !password || password.length < 12)
+  .map(([role]) => `SEED_${role.toUpperCase()}_PASSWORD`);
+
+if (missingPasswords.length) {
+  console.error(`Set unique passwords of at least 12 characters in backend/.env: ${missingPasswords.join(", ")}`);
+  process.exit(1);
+}
+
 const connection = await pool.getConnection();
 try {
   await connection.beginTransaction();
@@ -26,14 +40,11 @@ try {
     [cse.department_id, ece.department_id],
   );
   const accounts = [
-    ["admin@college.edu", process.env.SEED_ADMIN_PASSWORD, "admin", "Campus Administrator"],
-    ["priya.faculty@college.edu", process.env.SEED_FACULTY_PASSWORD, "faculty", "Dr. Priya Menon"],
-    ["aarav.student@college.edu", process.env.SEED_STUDENT_PASSWORD, "student", "Aarav Mehta"],
+    ["admin@college.edu", seedPasswords.admin, "admin", "Campus Administrator"],
+    ["priya.faculty@college.edu", seedPasswords.faculty, "faculty", "Dr. Priya Menon"],
+    ["aarav.student@college.edu", seedPasswords.student, "student", "Aarav Mehta"],
   ];
   for (const [email, password, role, name] of accounts) {
-    if (!password || password.length < 12) {
-      throw new Error(`Set a private SEED_${role.toUpperCase()}_PASSWORD with at least 12 characters in backend/.env.`);
-    }
     await connection.execute(
       "INSERT INTO users (email, password_hash, role, display_name) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), role = VALUES(role), display_name = VALUES(display_name)",
       [email, await bcrypt.hash(password, 12), role, name],
@@ -46,7 +57,7 @@ try {
     "INSERT IGNORE INTO fees (student_id, amount, due_date, description, status) SELECT student_id, 12000, DATE_ADD(CURDATE(), INTERVAL 30 DAY), 'Semester tuition', 'pending' FROM students WHERE student_code = 'STU-2026-002'",
   );
   await connection.commit();
-  console.log("Seed complete. Admin account: admin@college.edu");
+  console.log("Seed complete. Configure the seed account passwords in backend/.env to sign in.");
 } catch (error) {
   await connection.rollback();
   console.error("Seed failed:", error.message);
